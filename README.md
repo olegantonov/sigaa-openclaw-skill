@@ -4,22 +4,24 @@ An OpenClaw agent skill for interacting with **SIGAA** (Sistema Integrado de Ges
 
 ## Features
 
-- 🔐 **Authentication**: Supports both CAS SSO (UNB-style) and direct login
-- 🎓 **Student Portal**: Enrollment status, grades, academic history, class schedule
-- 👨‍🏫 **Professor Portal**: Class management, attendance, grade entry
-- 🏛️ **Multi-institution**: Works with UNB, UFRN, UFC, UFPE, UFCG, UFPI, UFRRJ, and 40+ more
-- 🔒 **Security-first**: Credentials via 1Password, no hardcoded secrets, session cleanup
+- 🔐 **Secure authentication**: CAS SSO (UNB-style) and direct login — credentials via env vars only, never CLI args
+- 🎓 **Student Portal**: enrollment status, grades, academic history, class schedule
+- 👨‍🏫 **Professor Portal**: class management, attendance, grade entry
+- 🏛️ **Multi-institution**: UNB, UFRN, UFC, UFPE, UFCG, UFPI, UFRRJ, and 40+ more
+- 🔒 **Security-first**: cookies chmod 600 + auto-deleted on exit, password cleared from env after login, rate limiting built-in
 
 ## Supported Institutions
 
 50+ Brazilian federal universities including:
 - UNB (Universidade de Brasília)
 - UFRN (Universidade Federal do Rio Grande do Norte — original SIGAA developer)
-- UFC (Universidade Federal do Ceará)
-- UFPE (Universidade Federal de Pernambuco)
-- UFCG (Universidade Federal de Campina Grande)
-- UFPI (Universidade Federal do Piauí)
-- UFRRJ, UFBA, UFPA, UFPB, and many more
+- UFC, UFPE, UFCG, UFPI, UFRRJ, UFBA, UFPA, UFPB, and many more
+
+## Requirements
+
+- `curl` — HTTP client
+- `python3` — HTML parsing
+- `grep` with PCRE support (`grep -P`)
 
 ## Installation
 
@@ -27,28 +29,33 @@ An OpenClaw agent skill for interacting with **SIGAA** (Sistema Integrado de Ges
 clawhub install sigaa
 ```
 
-## Usage Examples
+## Usage
 
 ```bash
-# Login
-source scripts/sigaa_login.sh "https://sigaa.unb.br" "241104251" "mypassword"
+# 1. Set credentials as env vars (never pass on command line)
+export SIGAA_URL='https://sigaa.unb.br'
+export SIGAA_USER='241104251'        # matricula, CPF, or SIAPE depending on institution
+export SIGAA_PASSWORD='mypassword'
 
-# Check enrollments
-bash scripts/sigaa_student.sh enrollment-result
+# 2. Login (source to export session vars into current shell)
+source scripts/sigaa_login.sh
 
-# Check grades
-bash scripts/sigaa_student.sh grades
-
-# Professor: list classes
-bash scripts/sigaa_professor.sh classes
+# 3. Run operations
+bash scripts/sigaa_student.sh enrollment-result   # Check enrollment status
+bash scripts/sigaa_student.sh grades              # Grades
+bash scripts/sigaa_student.sh status              # Program info
+bash scripts/sigaa_professor.sh classes           # Professor: list classes
 ```
 
-## Security
+## Security Design
 
-- Always retrieve credentials via 1Password (`op item get`)
-- Session cookies stored in `/tmp` — automatically scoped to process
-- No credentials ever logged or written to disk
-- Rate limiting built in to avoid account lockouts
+| Concern | Mitigation |
+|---------|-----------|
+| Password in shell history | Credentials via env vars only — never positional args |
+| Cookie exposure | `chmod 600` on creation + `trap EXIT` auto-delete |
+| Password in memory | `unset SIGAA_PASSWORD` after successful login |
+| Rate limiting / lockout | 0.5s delay between requests |
+| Wrong CAS host | Scripts derive CAS host from login redirect — verify before running |
 
 ## License
 
